@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Option Pricing Calculator</title>
+    <style>
+        /* Add styling for the form */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            padding: 5px;
+            width: 100%;
+        }
+        .results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Black-Scholes Option Pricing Calculator</h2>
+    <form id="optionForm">
+        <div class="form-group">
+            <label for="underlying">Underlying Price (S):</label>
+            <input type="number" id="underlying" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="strike">Strike Price (K):</label>
+            <input type="number" id="strike" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="rate">Risk-Free Rate (r in %):</label>
+            <input type="number" id="rate" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="volatilityCall">Volatility for Call (σ in %):</label>
+            <input type="number" id="volatilityCall" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="volatilityPut">Volatility for Put (σ in %):</label>
+            <input type="number" id="volatilityPut" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="dividend">Dividend Yield (q in %):</label>
+            <input type="number" id="dividend" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="expiry">Expiry Date:</label>
+            <input type="date" id="expiry" required>
+        </div>
+        <div class="form-group">
+            <label for="transaction">Transaction Date:</label>
+            <input type="date" id="transaction" required>
+        </div>
+        <button type="button" onclick="calculateOption()">Calculate</button>
+    </form>
+
+    <div class="results">
+        <h3>Call Option Results</h3>
+        <p>Price: <span id="callPrice"></span></p>
+        <p>Delta: <span id="callDelta"></span></p>
+        <p>Gamma: <span id="callGamma"></span></p>
+        <p>Vega: <span id="callVega"></span></p>
+        <p>Theta: <span id="callTheta"></span></p>
+        <p>Rho: <span id="callRho"></span></p>
+
+        <h3>Put Option Results</h3>
+        <p>Price: <span id="putPrice"></span></p>
+        <p>Delta: <span id="putDelta"></span></p>
+        <p>Gamma: <span id="putGamma"></span></p>
+        <p>Vega: <span id="putVega"></span></p>
+        <p>Theta: <span id="putTheta"></span></p>
+        <p>Rho: <span id="putRho"></span></p>
+    </div>
+
+    <script>
+        function calculateOption() {
+            var S = parseFloat(document.getElementById("underlying").value);
+            var K = parseFloat(document.getElementById("strike").value);
+            var r = parseFloat(document.getElementById("rate").value) / 100;
+            var expiryDate = new Date(document.getElementById("expiry").value);
+            var transactionDate = new Date(document.getElementById("transaction").value);
+            var sigmaCall = parseFloat(document.getElementById("volatilityCall").value) / 100;
+            var sigmaPut = parseFloat(document.getElementById("volatilityPut").value) / 100;
+            var q = parseFloat(document.getElementById("dividend").value) / 100;
+
+            var T = (expiryDate - transactionDate) / (1000 * 60 * 60 * 24) / 365;
+
+            if (isNaN(S) || isNaN(K) || isNaN(r) || isNaN(T) || isNaN(sigmaCall) || isNaN(sigmaPut) || isNaN(q)) {
+                alert("Please enter valid numbers in all fields.");
+                return;
+            }
+
+            if (expiryDate <= transactionDate) {
+                alert("Expiry date must be after the transaction date.");
+                return;
+            }
+
+            calculateBlackScholes(S, K, r, T, sigmaCall, sigmaPut, q);
+        }
+
+        function calculateBlackScholes(S, K, r, T, sigmaCall, sigmaPut, q) {
+            var d1Call = (Math.log(S / K) + (r - q + 0.5 * sigmaCall * sigmaCall) * T) / (sigmaCall * Math.sqrt(T));
+            var d2Call = d1Call - sigmaCall * Math.sqrt(T);
+            var callPrice = S * Math.exp(-q * T) * normCDF(d1Call) - K * Math.exp(-r * T) * normCDF(d2Call);
+            var callDelta = normCDF(d1Call);
+            var callGamma = normPDF(d1Call) / (S * sigmaCall * Math.sqrt(T));
+            var callVega = S * normPDF(d1Call) * Math.sqrt(T) / 100;
+            var callTheta = (-S * normPDF(d1Call) * sigmaCall / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * normCDF(d2Call) + q * S * Math.exp(-q * T) * normCDF(d1Call)) / 365;
+            var callRho = K * T * Math.exp(-r * T) * normCDF(d2Call) / 100;
+
+            var d1Put = (Math.log(S / K) + (r - q + 0.5 * sigmaPut * sigmaPut) * T) / (sigmaPut * Math.sqrt(T));
+            var d2Put = d1Put - sigmaPut * Math.sqrt(T);
+            var putPrice = K * Math.exp(-r * T) * normCDF(-d2Put) - S * Math.exp(-q * T) * normCDF(-d1Put);
+            var putDelta = normCDF(d1Put) - 1;
+            var putGamma = normPDF(d1Put) / (S * sigmaPut * Math.sqrt(T));
+            var putVega = S * normPDF(d1Put) * Math.sqrt(T) / 100;
+            var putTheta = (-S * normPDF(d1Put) * sigmaPut / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * normCDF(-d2Put) - q * S * Math.exp(-q * T) * normCDF(-d1Put)) / 365;
+            var putRho = -K * T * Math.exp(-r * T) * normCDF(-d2Put) / 100;
+
+            document.getElementById("callPrice").textContent = callPrice.toFixed(2);
+            document.getElementById("callDelta").textContent = callDelta.toFixed(4);
+            document.getElementById("callGamma").textContent = callGamma.toFixed(4);
+            document.getElementById("callVega").textContent = callVega.toFixed(4);
+            document.getElementById("callTheta").textContent = callTheta.toFixed(4);
+            document.getElementById("callRho").textContent = callRho.toFixed(4);
+
+            document.getElementById("putPrice").textContent = putPrice.toFixed(2);
+            document.getElementById("putDelta").textContent = putDelta.toFixed(4);
+            document.getElementById("putGamma").textContent = putGamma.toFixed(4);
+            document.getElementById("putVega").textContent = putVega.toFixed(4);
+            document.getElementById("putTheta").textContent = putTheta.toFixed(4);
+            document.getElementById("putRho").textContent = putRho.toFixed(4);
+        }
+
+        function normCDF(x) {
+            return (1.0 + Math.erf(x / Math.sqrt(2.0))) / 2.0;
+        }
+
+        function normPDF(x) {
+            return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+        }
+    </script>
+</body>
+</html>
